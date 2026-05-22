@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
 import { v4 as uuid } from 'uuid';
-import { DiagramNode, Connection, DiagramData, NodeTemplate, CableType } from '../types/diagram';
+import { DiagramNode, Connection, DiagramData, NodeTemplate, CableType, PortSide } from '../types/diagram';
 
 interface State {
   diagram: DiagramData;
@@ -36,14 +36,7 @@ type Action =
   | { type: 'CLEAR_ALL' };
 
 function newDiagram(): DiagramData {
-  return {
-    id: uuid(),
-    title: '新しい構成図',
-    nodes: [],
-    connections: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  return { id: uuid(), title: '新しい構成図', nodes: [], connections: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 }
 
 function reducer(state: State, action: Action): State {
@@ -54,15 +47,11 @@ function reducer(state: State, action: Action): State {
     case 'UPDATE_NODE':
       return { ...state, diagram: touch({ ...state.diagram, nodes: state.diagram.nodes.map(n => n.id === action.node.id ? action.node : n) }) };
     case 'DELETE_NODE':
-      return {
-        ...state,
-        selectedNodeId: state.selectedNodeId === action.id ? null : state.selectedNodeId,
-        diagram: touch({
-          ...state.diagram,
+      return { ...state, selectedNodeId: state.selectedNodeId === action.id ? null : state.selectedNodeId,
+        diagram: touch({ ...state.diagram,
           nodes: state.diagram.nodes.filter(n => n.id !== action.id),
           connections: state.diagram.connections.filter(c => c.fromNode !== action.id && c.toNode !== action.id),
-        }),
-      };
+        }) };
     case 'MOVE_NODE':
       return { ...state, diagram: touch({ ...state.diagram, nodes: state.diagram.nodes.map(n => n.id === action.id ? { ...n, x: action.x, y: action.y } : n) }) };
     case 'RESIZE_NODE':
@@ -70,7 +59,8 @@ function reducer(state: State, action: Action): State {
     case 'ADD_CONN':
       return { ...state, diagram: touch({ ...state.diagram, connections: [...state.diagram.connections, action.conn] }) };
     case 'DELETE_CONN':
-      return { ...state, selectedConnId: state.selectedConnId === action.id ? null : state.selectedConnId, diagram: touch({ ...state.diagram, connections: state.diagram.connections.filter(c => c.id !== action.id) }) };
+      return { ...state, selectedConnId: state.selectedConnId === action.id ? null : state.selectedConnId,
+        diagram: touch({ ...state.diagram, connections: state.diagram.connections.filter(c => c.id !== action.id) }) };
     case 'SELECT_NODE': return { ...state, selectedNodeId: action.id, selectedConnId: null };
     case 'SELECT_CONN': return { ...state, selectedConnId: action.id, selectedNodeId: null };
     case 'SET_MODE': return { ...state, mode: action.mode, connectStep: 0, connectFrom: null };
@@ -86,16 +76,9 @@ function reducer(state: State, action: Action): State {
 }
 
 const initState: State = {
-  diagram: newDiagram(),
-  selectedNodeId: null,
-  selectedConnId: null,
-  mode: 'select',
-  connectingCable: 'sc-lc-1',
-  connectStep: 0,
-  connectFrom: null,
-  scale: 1,
-  panX: 0,
-  panY: 0,
+  diagram: newDiagram(), selectedNodeId: null, selectedConnId: null,
+  mode: 'select', connectingCable: 'sc-lc-1', connectStep: 0, connectFrom: null,
+  scale: 1, panX: 0, panY: 0,
 };
 
 const Ctx = createContext<{ state: State; dispatch: React.Dispatch<Action> } | null>(null);
@@ -113,41 +96,32 @@ export function useDiagram() {
   const addNodeFromTemplate = useCallback((tmpl: NodeTemplate, x: number, y: number) => {
     const isContainer = tmpl.isContainer ?? false;
     const node: DiagramNode = {
-      id: uuid(),
-      type: tmpl.type,
-      label: tmpl.label,
-      x, y,
-      width: isContainer ? 240 : 160,
-      height: isContainer ? 180 : undefined,
+      id: uuid(), type: tmpl.type, label: tmpl.label, x, y,
+      width: isContainer ? 260 : 160,
+      height: isContainer ? 200 : undefined,
       ports: tmpl.defaultPorts.map(p => ({ id: uuid(), label: p })),
-      color: tmpl.color,
-      bg: tmpl.bg,
-      sfps: [],
+      portSide: tmpl.defaultPortSide ?? 'right',
+      color: tmpl.color, bg: tmpl.bg, sfps: [],
     };
     dispatch({ type: 'ADD_NODE', node });
     return node.id;
   }, [dispatch]);
 
   const connectPorts = useCallback((fromNode: string, fromPort: string, toNode: string, toPort: string, cableType: CableType) => {
-    const conn: Connection = { id: uuid(), fromNode, fromPort, toNode, toPort, cableType };
-    dispatch({ type: 'ADD_CONN', conn });
+    dispatch({ type: 'ADD_CONN', conn: { id: uuid(), fromNode, fromPort, toNode, toPort, cableType } });
   }, [dispatch]);
 
   const exportJSON = useCallback(() => {
     const blob = new Blob([JSON.stringify(state.diagram, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${state.diagram.title}.json`;
-    a.click();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `${state.diagram.title}.json`; a.click();
   }, [state.diagram]);
 
   const importJSON = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = e => {
-      try {
-        const data = JSON.parse(e.target?.result as string) as DiagramData;
-        dispatch({ type: 'LOAD_DIAGRAM', diagram: data });
-      } catch { alert('ファイルの読み込みに失敗しました'); }
+      try { dispatch({ type: 'LOAD_DIAGRAM', diagram: JSON.parse(e.target?.result as string) }); }
+      catch { alert('ファイルの読み込みに失敗しました'); }
     };
     reader.readAsText(file);
   }, [dispatch]);

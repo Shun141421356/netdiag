@@ -3,7 +3,7 @@ import { CABLE_STYLES, CableType } from '../types/diagram';
 
 export function Legend() {
   return (
-    <div className="absolute bottom-4 left-4 bg-white border border-gray-200 rounded-lg shadow-sm p-2.5 text-xs z-10">
+    <div className="absolute bottom-4 left-4 bg-white border border-gray-200 rounded-lg shadow-sm p-2.5 z-10">
       <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">凡例</p>
       <div className="space-y-1">
         {(Object.entries(CABLE_STYLES) as [CableType, typeof CABLE_STYLES[CableType]][]).map(([key, s]) => (
