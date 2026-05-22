@@ -51,7 +51,7 @@ function reducer(state: State, action: Action): State {
         diagram: touch({ ...state.diagram,
           nodes: state.diagram.nodes.filter(n => n.id !== action.id),
           connections: state.diagram.connections.filter(c => c.fromNode !== action.id && c.toNode !== action.id),
-        }) };
+        })};
     case 'MOVE_NODE':
       return { ...state, diagram: touch({ ...state.diagram, nodes: state.diagram.nodes.map(n => n.id === action.id ? { ...n, x: action.x, y: action.y } : n) }) };
     case 'RESIZE_NODE':
@@ -63,14 +63,14 @@ function reducer(state: State, action: Action): State {
         diagram: touch({ ...state.diagram, connections: state.diagram.connections.filter(c => c.id !== action.id) }) };
     case 'SELECT_NODE': return { ...state, selectedNodeId: action.id, selectedConnId: null };
     case 'SELECT_CONN': return { ...state, selectedConnId: action.id, selectedNodeId: null };
-    case 'SET_MODE': return { ...state, mode: action.mode, connectStep: 0, connectFrom: null };
-    case 'SET_CABLE': return { ...state, connectingCable: action.cable };
+    case 'SET_MODE':    return { ...state, mode: action.mode, connectStep: 0, connectFrom: null };
+    case 'SET_CABLE':   return { ...state, connectingCable: action.cable };
     case 'SET_CONNECT_STEP': return { ...state, connectStep: action.step, connectFrom: action.from !== undefined ? action.from : state.connectFrom };
-    case 'SET_SCALE': return { ...state, scale: Math.max(0.3, Math.min(3, action.scale)) };
-    case 'SET_PAN': return { ...state, panX: action.x, panY: action.y };
-    case 'LOAD_DIAGRAM': return { ...state, diagram: action.diagram, selectedNodeId: null, selectedConnId: null };
-    case 'SET_TITLE': return { ...state, diagram: touch({ ...state.diagram, title: action.title }) };
-    case 'CLEAR_ALL': return { ...state, diagram: newDiagram(), selectedNodeId: null, selectedConnId: null };
+    case 'SET_SCALE':   return { ...state, scale: Math.max(0.3, Math.min(3, action.scale)) };
+    case 'SET_PAN':     return { ...state, panX: action.x, panY: action.y };
+    case 'LOAD_DIAGRAM':return { ...state, diagram: action.diagram, selectedNodeId: null, selectedConnId: null };
+    case 'SET_TITLE':   return { ...state, diagram: touch({ ...state.diagram, title: action.title }) };
+    case 'CLEAR_ALL':   return { ...state, diagram: newDiagram(), selectedNodeId: null, selectedConnId: null };
     default: return state;
   }
 }
@@ -82,7 +82,6 @@ const initState: State = {
 };
 
 const Ctx = createContext<{ state: State; dispatch: React.Dispatch<Action> } | null>(null);
-
 export function DiagramProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initState);
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>;
@@ -95,12 +94,12 @@ export function useDiagram() {
 
   const addNodeFromTemplate = useCallback((tmpl: NodeTemplate, x: number, y: number) => {
     const isContainer = tmpl.isContainer ?? false;
+    const defaultSide: PortSide = tmpl.defaultPortSide ?? 'right';
     const node: DiagramNode = {
       id: uuid(), type: tmpl.type, label: tmpl.label, x, y,
       width: isContainer ? 260 : 160,
       height: isContainer ? 200 : undefined,
-      ports: tmpl.defaultPorts.map(p => ({ id: uuid(), label: p })),
-      portSide: tmpl.defaultPortSide ?? 'right',
+      ports: tmpl.defaultPorts.map(p => ({ id: uuid(), label: p, side: defaultSide })),
       color: tmpl.color, bg: tmpl.bg, sfps: [],
     };
     dispatch({ type: 'ADD_NODE', node });
@@ -113,8 +112,8 @@ export function useDiagram() {
 
   const exportJSON = useCallback(() => {
     const blob = new Blob([JSON.stringify(state.diagram, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `${state.diagram.title}.json`; a.click();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `${state.diagram.title}.json`; a.click();
   }, [state.diagram]);
 
   const importJSON = useCallback((file: File) => {

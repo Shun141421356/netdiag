@@ -19,6 +19,7 @@ export const CONTAINER_TYPES: NodeType[] = ['rack', 'mdf', 'eps', 'building', 'n
 export interface Port {
   id: string;
   label: string;
+  side: PortSide; // ポートごとの向き
 }
 
 export interface SFP {
@@ -37,14 +38,12 @@ export interface DiagramNode {
   width: number;
   height?: number;
   ports: Port[];
-  portSide: PortSide;
   sfps?: SFP[];
   color: string;
   bg: string;
   model?: string;
   floor?: string;
   notes?: string;
-  parentId?: string;
 }
 
 export interface Connection {
@@ -91,24 +90,24 @@ export const NODE_CATEGORIES: { label: string; items: NodeTemplate[] }[] = [
   {
     label: 'NTT局舎',
     items: [
-      { type: 'ntt-cloud',  label: 'NTT区間 (雲)',      defaultPorts: ['左', '右'],  color: '#3C3489', bg: '#EEEDFE', isContainer: true, defaultPortSide: 'right' },
-      { type: 'rack',       label: 'ラック',              defaultPorts: [],             color: '#0C447C', bg: '#B5D4F4', isContainer: true },
+      { type: 'ntt-cloud',  label: 'NTT区間 (雲)',       defaultPorts: ['左','右'],    color: '#3C3489', bg: '#EEEDFE', isContainer: true, defaultPortSide: 'right' },
+      { type: 'rack',       label: 'ラック',              defaultPorts: [],              color: '#0C447C', bg: '#B5D4F4', isContainer: true },
       { type: '対向装置',   label: '対向装置',            defaultPorts: ['Port1','Port2','Port3','Port4'], color: '#0C447C', bg: '#B5D4F4', defaultPortSide: 'right' },
-      { type: 'patchpanel', label: 'パッチパネル',        defaultPorts: ['1'],          color: '#0C447C', bg: '#B5D4F4', defaultPortSide: 'right' },
+      { type: 'patchpanel', label: 'パッチパネル',        defaultPorts: ['1'],           color: '#0C447C', bg: '#B5D4F4', defaultPortSide: 'right' },
     ],
   },
   {
     label: '加入者建物',
     items: [
-      { type: 'building',   label: '建物 / フロア',       defaultPorts: [],             color: '#085041', bg: '#9FE1CB', isContainer: true },
-      { type: 'mdf',        label: 'MDF（部屋）',         defaultPorts: [],             color: '#085041', bg: '#9FE1CB', isContainer: true },
-      { type: 'eps',        label: 'EPS（部屋）',         defaultPorts: [],             color: '#085041', bg: '#9FE1CB', isContainer: true },
-      { type: 'pdboard',    label: 'NTT PD板',            defaultPorts: ['出力1','出力2','出力3','出力4'], color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
-      { type: 'idf',        label: 'IDF',                 defaultPorts: ['UP','系統1','系統2'],           color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
-      { type: 'rosette-1',  label: 'ローゼット（1P）',    defaultPorts: ['Port1'],      color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
-      { type: 'rosette-4',  label: 'ローゼット（4P）',    defaultPorts: ['Port1','Port2','Port3','Port4'], color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
-      { type: 'cpe',        label: 'CPE（CRS / CCR等）',  defaultPorts: ['ether1','ether2','ether3','SFP1'], color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
-      { type: 'server',     label: 'サーバ',              defaultPorts: ['eth0','eth1','MGMT'],           color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
+      { type: 'building',  label: '建物 / フロア',        defaultPorts: [],              color: '#085041', bg: '#9FE1CB', isContainer: true },
+      { type: 'mdf',       label: 'MDF（部屋）',          defaultPorts: [],              color: '#085041', bg: '#9FE1CB', isContainer: true },
+      { type: 'eps',       label: 'EPS（部屋）',          defaultPorts: [],              color: '#085041', bg: '#9FE1CB', isContainer: true },
+      { type: 'pdboard',   label: 'NTT PD板',             defaultPorts: ['出力1','出力2','出力3','出力4'], color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
+      { type: 'idf',       label: 'IDF',                  defaultPorts: ['UP','系統1','系統2'],            color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
+      { type: 'rosette-1', label: 'ローゼット（1P）',     defaultPorts: ['Port1'],       color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
+      { type: 'rosette-4', label: 'ローゼット（4P）',     defaultPorts: ['Port1','Port2','Port3','Port4'], color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
+      { type: 'cpe',       label: 'CPE（CRS / CCR等）',   defaultPorts: ['ether1','ether2','ether3','SFP1'], color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
+      { type: 'server',    label: 'サーバ',               defaultPorts: ['eth0','eth1','MGMT'],            color: '#085041', bg: '#9FE1CB', defaultPortSide: 'right' },
     ],
   },
   {
@@ -119,42 +118,82 @@ export const NODE_CATEGORIES: { label: string; items: NodeTemplate[] }[] = [
   },
 ];
 
-// ノードの実際の高さを計算
-export function getDefaultNodeHeight(node: DiagramNode): number {
-  if (CONTAINER_TYPES.includes(node.type)) return node.height ?? 200;
-  const headerH = 26 + (node.floor ? 18 : 0);
-  const side = node.portSide;
-  if (side === 'left' || side === 'right') {
-    return headerH + node.ports.length * 20 + 8 + (node.sfps?.length ?? 0) * 20 + (node.notes ? 20 : 0);
+// ポートの相対座標を返す（コンテナ用: 辺の上に配置）
+export function getContainerPortPosition(
+  node: DiagramNode, port: Port, portIdx: number, portsOnSide: number, sideIdx: number,
+): { x: number; y: number } {
+  const w = node.width;
+  const h = node.height ?? 200;
+  const t = (sideIdx + 1) / (portsOnSide + 1);
+  switch (port.side) {
+    case 'left':   return { x: 0, y: h * t };
+    case 'right':  return { x: w, y: h * t };
+    case 'top':    return { x: w * t, y: 0 };
+    case 'bottom': return { x: w * t, y: h };
   }
-  // top/bottom: ポートは横並びなので高さは固定
-  return headerH + 28 + (node.sfps?.length ?? 0) * 20 + (node.notes ? 20 : 0);
 }
 
-// ポートのノード内相対座標を返す（接続線の計算に使用）
-export function getPortPosition(node: DiagramNode, portIdx: number, portCount: number): { x: number; y: number } {
+// 通常ノードのポート相対座標
+export function getNormalPortPosition(node: DiagramNode, port: Port, sideIdx: number, portsOnSide: number): { x: number; y: number } {
   const w = node.width;
-  const h = getDefaultNodeHeight(node);
-  const side = node.portSide;
+  const HEADER_H = 26 + (node.floor ? 18 : 0);
+  const PORT_H   = 20;
+  const t = (sideIdx + 1) / (portsOnSide + 1);
+
+  switch (port.side) {
+    case 'left':
+    case 'right': {
+      // 左右ポートは縦並び: sideIdx番目の行
+      const y = HEADER_H + 4 + sideIdx * PORT_H + PORT_H / 2;
+      return { x: port.side === 'left' ? 0 : w, y };
+    }
+    case 'top':    return { x: w * t, y: 0 };
+    case 'bottom': {
+      // bottom ポートは左右ポートの下に付く
+      const leftRightCount  = node.ports.filter(p => p.side === 'left' || p.side === 'right').length;
+      const bottomY = HEADER_H + 4 + leftRightCount * PORT_H + 8 + 14;
+      return { x: w * t, y: bottomY };
+    }
+  }
+}
+
+// ノードの実高さ
+export function getNodeHeight(node: DiagramNode): number {
+  if (CONTAINER_TYPES.includes(node.type)) return node.height ?? 200;
+  const HEADER_H = 26 + (node.floor ? 18 : 0);
+  const lrPorts  = node.ports.filter(p => p.side === 'left' || p.side === 'right').length;
+  const tbPorts  = node.ports.filter(p => p.side === 'top'  || p.side === 'bottom').length;
+  const portsH   = lrPorts * 20 + (tbPorts > 0 ? 28 : 0) + 8;
+  const sfpsH    = (node.sfps?.length ?? 0) * 20;
+  const notesH   = node.notes ? 20 : 0;
+  return HEADER_H + portsH + sfpsH + notesH;
+}
+
+// 絶対座標でのポート中心
+export function getAbsolutePortCenter(node: DiagramNode, portId: string): { x: number; y: number } {
+  const portIdx = node.ports.findIndex(p => p.id === portId);
+  if (portIdx < 0) return { x: node.x + node.width / 2, y: node.y + 20 };
+  const port = node.ports[portIdx];
 
   if (CONTAINER_TYPES.includes(node.type)) {
-    // コンテナ: 辺に均等配置
-    if (side === 'left')   return { x: 0, y: h * (portIdx + 1) / (portCount + 1) };
-    if (side === 'right')  return { x: w, y: h * (portIdx + 1) / (portCount + 1) };
-    if (side === 'top')    return { x: w * (portIdx + 1) / (portCount + 1), y: 0 };
-    if (side === 'bottom') return { x: w * (portIdx + 1) / (portCount + 1), y: h };
+    const sameSide   = node.ports.filter(p => p.side === port.side);
+    const sideIdx    = sameSide.findIndex(p => p.id === portId);
+    const rel = getContainerPortPosition(node, port, portIdx, sameSide.length, sideIdx);
+    return { x: node.x + rel.x, y: node.y + rel.y };
   }
 
-  const headerH = 26 + (node.floor ? 18 : 0);
-  const portH = 20;
+  const sameSide = node.ports.filter(p => p.side === port.side);
+  const sideIdx  = sameSide.findIndex(p => p.id === portId);
+  const rel = getNormalPortPosition(node, port, sideIdx, sameSide.length);
+  return { x: node.x + rel.x, y: node.y + rel.y };
+}
 
-  if (side === 'left' || side === 'right') {
-    const y = headerH + 4 + portIdx * portH + portH / 2;
-    return { x: side === 'left' ? 0 : w, y };
+// ポートの向きに応じたベジェ制御点オフセット
+export function controlOffset(side: PortSide, dist = 60): { dx: number; dy: number } {
+  switch (side) {
+    case 'left':   return { dx: -dist, dy: 0 };
+    case 'right':  return { dx:  dist, dy: 0 };
+    case 'top':    return { dx: 0, dy: -dist };
+    case 'bottom': return { dx: 0, dy:  dist };
   }
-  // top/bottom: 横均等
-  const x = w * (portIdx + 1) / (portCount + 1);
-  if (side === 'top')    return { x, y: 0 };
-  if (side === 'bottom') return { x, y: h };
-  return { x: w, y: headerH + 4 + portIdx * portH + portH / 2 };
 }

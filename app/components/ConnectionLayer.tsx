@@ -1,25 +1,7 @@
 'use client';
 import { useMemo } from 'react';
 import { useDiagram } from '../store/diagramStore';
-import { CABLE_STYLES, DiagramNode, getPortPosition, getDefaultNodeHeight } from '../types/diagram';
-
-function getAbsolutePortPos(node: DiagramNode, portId: string) {
-  const idx = node.ports.findIndex(p => p.id === portId);
-  if (idx < 0) return { x: node.x + node.width / 2, y: node.y + 20 };
-  const rel = getPortPosition(node, idx, node.ports.length);
-  return { x: node.x + rel.x, y: node.y + rel.y };
-}
-
-// ポートの向きに応じたベジェ制御点の方向ベクトル
-function controlOffset(node: DiagramNode): { dx: number; dy: number } {
-  const side = node.portSide;
-  const dist = 60;
-  if (side === 'left')   return { dx: -dist, dy: 0 };
-  if (side === 'right')  return { dx:  dist, dy: 0 };
-  if (side === 'top')    return { dx: 0, dy: -dist };
-  if (side === 'bottom') return { dx: 0, dy:  dist };
-  return { dx: dist, dy: 0 };
-}
+import { CABLE_STYLES, getAbsolutePortCenter, controlOffset } from '../types/diagram';
 
 export function ConnectionLayer() {
   const { state, dispatch } = useDiagram();
@@ -31,18 +13,20 @@ export function ConnectionLayer() {
       const toNode   = diagram.nodes.find(n => n.id === conn.toNode);
       if (!fromNode || !toNode) return null;
 
-      const fp = getAbsolutePortPos(fromNode, conn.fromPort);
-      const tp = getAbsolutePortPos(toNode,   conn.toPort);
-      const fo = controlOffset(fromNode);
-      const to = controlOffset(toNode);
+      const fromPort = fromNode.ports.find(p => p.id === conn.fromPort);
+      const toPort   = toNode.ports.find(p => p.id === conn.toPort);
+      if (!fromPort || !toPort) return null;
 
-      // ベジェ: 接続元の向きから出て、接続先の向きに入る
-      const d = `M${fp.x},${fp.y} C${fp.x + fo.dx},${fp.y + fo.dy} ${tp.x + to.dx},${tp.y + to.dy} ${tp.x},${tp.y}`;
+      const fp = getAbsolutePortCenter(fromNode, conn.fromPort);
+      const tp = getAbsolutePortCenter(toNode,   conn.toPort);
+      const fo = controlOffset(fromPort.side);
+      const to = controlOffset(toPort.side);
 
-      const style    = CABLE_STYLES[conn.cableType];
-      const isSel    = conn.id === selectedConnId;
-      const midX     = (fp.x + tp.x) / 2;
-      const midY     = (fp.y + tp.y) / 2 - 10;
+      const d = `M${fp.x},${fp.y} C${fp.x+fo.dx},${fp.y+fo.dy} ${tp.x+to.dx},${tp.y+to.dy} ${tp.x},${tp.y}`;
+      const style = CABLE_STYLES[conn.cableType];
+      const isSel = conn.id === selectedConnId;
+      const midX  = (fp.x + tp.x) / 2;
+      const midY  = (fp.y + tp.y) / 2 - 10;
 
       return { conn, d, style, isSel, midX, midY };
     }).filter(Boolean);
@@ -68,12 +52,9 @@ export function ConnectionLayer() {
               stroke={isSel ? '#D85A30' : style.stroke}
               strokeWidth={isSel ? 3 : style.width}
               strokeDasharray={style.dash || undefined}
-              markerEnd={`url(#arr-${conn.cableType})`}
-              className="transition-all duration-150" />
+              markerEnd={`url(#arr-${conn.cableType})`} />
             <text x={midX} y={midY} textAnchor="middle" fontSize={9} fill={style.stroke} opacity={0.75}
-              style={{ pointerEvents: 'none', userSelect: 'none' }}>
-              {style.label}
-            </text>
+              style={{ pointerEvents: 'none', userSelect: 'none' }}>{style.label}</text>
           </g>
         );
       })}
