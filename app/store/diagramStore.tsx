@@ -2,6 +2,7 @@
 import { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
 import { v4 as uuid } from 'uuid';
 import { DiagramNode, Connection, DiagramData, NodeTemplate, CableType, PortSide } from '../types/diagram';
+import { migrateJSON, CURRENT_SCHEMA_VERSION } from '../lib/migrate';
 
 interface State {
   diagram: DiagramData;
@@ -36,7 +37,11 @@ type Action =
   | { type: 'CLEAR_ALL' };
 
 function newDiagram(): DiagramData {
-  return { id: uuid(), title: '新しい構成図', nodes: [], connections: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  return {
+    id: uuid(), title: '新しい構成図', nodes: [], connections: [],
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
 }
 
 function reducer(state: State, action: Action): State {
@@ -111,16 +116,24 @@ export function useDiagram() {
   }, [dispatch]);
 
   const exportJSON = useCallback(() => {
-    const blob = new Blob([JSON.stringify(state.diagram, null, 2)], { type: 'application/json' });
+    const data = { ...state.diagram, schemaVersion: CURRENT_SCHEMA_VERSION };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = `${state.diagram.title}.json`; a.click();
+    a.href = URL.createObjectURL(blob);
+    a.download = `${state.diagram.title}.json`;
+    a.click();
   }, [state.diagram]);
 
   const importJSON = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = e => {
-      try { dispatch({ type: 'LOAD_DIAGRAM', diagram: JSON.parse(e.target?.result as string) }); }
-      catch { alert('ファイルの読み込みに失敗しました'); }
+      try {
+        const raw = JSON.parse(e.target?.result as string);
+        const migrated = migrateJSON(raw); // マイグレーション適用
+        dispatch({ type: 'LOAD_DIAGRAM', diagram: migrated });
+      } catch (err) {
+        alert(`読み込みエラー:\n${err instanceof Error ? err.message : '不明なエラー'}`);
+      }
     };
     reader.readAsText(file);
   }, [dispatch]);

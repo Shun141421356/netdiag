@@ -9,21 +9,21 @@ import { NodeTemplate } from '../types/diagram';
 
 interface Props {
   onNodeDoubleClick: (id: string) => void;
+  canvasWrapRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function Canvas({ onNodeDoubleClick }: Props) {
+export function Canvas({ onNodeDoubleClick, canvasWrapRef }: Props) {
   const { state, dispatch, addNodeFromTemplate } = useDiagram();
-  const wrapRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
-  const panStart = useRef({ mx: 0, my: 0, px: 0, py: 0 });
+  const panStart  = useRef({ mx: 0, my: 0, px: 0, py: 0 });
 
   const clientToCanvas = useCallback((cx: number, cy: number) => {
-    const rect = wrapRef.current!.getBoundingClientRect();
+    const rect = canvasWrapRef.current!.getBoundingClientRect();
     return {
       x: (cx - rect.left - state.panX) / state.scale,
-      y: (cy - rect.top - state.panY) / state.scale,
+      y: (cy - rect.top  - state.panY) / state.scale,
     };
-  }, [state.panX, state.panY, state.scale]);
+  }, [canvasWrapRef, state.panX, state.panY, state.scale]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -37,7 +37,7 @@ export function Canvas({ onNodeDoubleClick }: Props) {
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (state.mode === 'pan') {
       isPanning.current = true;
-      panStart.current = { mx: e.clientX, my: e.clientY, px: state.panX, py: state.panY };
+      panStart.current  = { mx: e.clientX, my: e.clientY, px: state.panX, py: state.panY };
       e.preventDefault();
     }
   }, [state.mode, state.panX, state.panY]);
@@ -51,8 +51,7 @@ export function Canvas({ onNodeDoubleClick }: Props) {
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const factor = e.deltaY > 0 ? 0.9 : 1.1;
-    dispatch({ type: 'SET_SCALE', scale: state.scale * factor });
+    dispatch({ type: 'SET_SCALE', scale: state.scale * (e.deltaY > 0 ? 0.9 : 1.1) });
   }, [state.scale, dispatch]);
 
   const handleBgClick = useCallback(() => {
@@ -65,11 +64,10 @@ export function Canvas({ onNodeDoubleClick }: Props) {
   }, [state.mode, state.connectStep, dispatch]);
 
   const isConnecting = state.mode === 'connect';
-  const connectStep = state.connectStep;
 
   return (
     <div
-      ref={wrapRef}
+      ref={canvasWrapRef}
       className="relative flex-1 overflow-hidden"
       style={{
         background: 'repeating-linear-gradient(0deg,transparent,transparent 19px,#e5e7eb 20px),repeating-linear-gradient(90deg,transparent,transparent 19px,#e5e7eb 20px), #f9fafb',
@@ -85,7 +83,7 @@ export function Canvas({ onNodeDoubleClick }: Props) {
     >
       {isConnecting && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-blue-600 text-white text-xs font-medium px-4 py-1.5 rounded-full shadow-md pointer-events-none">
-          {connectStep === 0 ? 'ケーブル接続モード — 起点ポートをクリック' : '→ 対向ポートをクリックして接続'}
+          {state.connectStep === 0 ? 'ケーブル接続モード — 起点ポートをクリック' : '→ 対向ポートをクリックして接続'}
         </div>
       )}
       {state.selectedConnId && !isConnecting && (

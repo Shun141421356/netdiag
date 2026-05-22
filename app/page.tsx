@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { DiagramProvider, useDiagram } from './store/diagramStore';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
@@ -9,6 +9,7 @@ function AppInner() {
   const { state, dispatch } = useDiagram();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(state.diagram.title);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
 
   const handleTitleEdit = useCallback(() => {
     setTitleInput(state.diagram.title);
@@ -26,8 +27,7 @@ function AppInner() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setEditingTitle(false)}>
           <div className="bg-white rounded-xl shadow-xl p-6 w-80" onClick={e => e.stopPropagation()}>
             <h2 className="font-semibold text-gray-800 mb-3 text-sm">構成図のタイトル</h2>
-            <input
-              autoFocus
+            <input autoFocus
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
               value={titleInput}
               onChange={e => setTitleInput(e.target.value)}
@@ -40,10 +40,10 @@ function AppInner() {
           </div>
         </div>
       )}
-      <Toolbar onTitleEdit={handleTitleEdit} />
+      <Toolbar onTitleEdit={handleTitleEdit} canvasWrapRef={canvasWrapRef} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <Canvas onNodeDoubleClick={() => {}} />
+        <Canvas onNodeDoubleClick={() => {}} canvasWrapRef={canvasWrapRef} />
       </div>
     </div>
   );

@@ -56,6 +56,7 @@ export interface Connection {
 }
 
 export interface DiagramData {
+  schemaVersion?: number;
   id: string;
   title: string;
   nodes: DiagramNode[];
@@ -70,8 +71,8 @@ export const CABLE_STYLES: Record<CableType, {
   'sc-lc-1':    { stroke: '#185FA5', dash: '',    width: 2, label: 'SC-LC 1芯' },
   'lc-lc-1':    { stroke: '#1D9E75', dash: '',    width: 2, label: 'LC-LC 1芯' },
   'lc-lc-2':    { stroke: '#1D9E75', dash: '6,3', width: 2, label: 'LC-LC 2芯' },
-  'patch-cat6': { stroke: '#D85A30', dash: '',    width: 2, label: 'パッチ Cat6' },
-  'patch-om3':  { stroke: '#D4537E', dash: '',    width: 2, label: 'パッチ OM3' },
+  'patch-cat6': { stroke: '#D85A30', dash: '',    width: 2, label: 'LAN' },
+  'patch-om3':  { stroke: '#D4537E', dash: '',    width: 2, label: 'OM3' },
   'dark-fiber': { stroke: '#2C2C2A', dash: '8,3', width: 2, label: 'ダークファイバ' },
   'indoor':     { stroke: '#888780', dash: '5,4', width: 2, label: 'インドア' },
 };
