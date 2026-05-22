@@ -10,13 +10,10 @@ export function PropPanel() {
   const { selectedNodeId, selectedConnId, diagram } = state;
   const node = diagram.nodes.find(n => n.id === selectedNodeId) ?? null;
   const conn = diagram.connections.find(c => c.id === selectedConnId) ?? null;
-
   if (!node && !conn) return null;
-
   return (
-    // stopPropagation でパネル内クリックがキャンバスに伝わらないようにする
     <div
-      className="absolute right-0 top-0 h-full w-60 bg-white border-l border-gray-200 shadow-lg flex flex-col z-20 text-xs"
+      className="absolute right-0 top-0 h-full w-60 bg-white border-l border-gray-200 shadow-lg flex flex-col z-30 text-xs"
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
       onWheel={e => e.stopPropagation()}
@@ -36,36 +33,39 @@ const PORT_SIDES: { value: PortSide; label: string }[] = [
 
 function NodeProp({ node, dispatch }: { node: DiagramNode; dispatch: React.Dispatch<any> }) {
   const isContainer = CONTAINER_TYPES.includes(node.type);
+  const prevId = useRef(node.id);
+
   const [form, setForm] = useState({
     label: node.label, model: node.model ?? '',
     floor: node.floor ?? '', notes: node.notes ?? '',
-    portSide: node.portSide,
   });
   const [ports, setPorts] = useState<Port[]>(node.ports);
   const [sfps,  setSfps]  = useState<SFP[]>(node.sfps ?? []);
 
-  // ノードが切り替わったときだけフォームをリセット
-  const prevId = useRef(node.id);
+  // ノードIDが変わった時だけリセット
   useEffect(() => {
-    if (prevId.current !== node.id) {
-      prevId.current = node.id;
-      setForm({ label: node.label, model: node.model ?? '', floor: node.floor ?? '', notes: node.notes ?? '', portSide: node.portSide });
-      setPorts(node.ports);
-      setSfps(node.sfps ?? []);
-    }
+    if (prevId.current === node.id) return;
+    prevId.current = node.id;
+    setForm({ label: node.label, model: node.model ?? '', floor: node.floor ?? '', notes: node.notes ?? '' });
+    setPorts(node.ports);
+    setSfps(node.sfps ?? []);
   }, [node.id]);
+
+  // ポート方向即時反映
+  const handlePortSide = (side: PortSide) => {
+    dispatch({ type: 'UPDATE_NODE', node: { ...node, portSide: side } });
+  };
 
   const save = () => {
     dispatch({ type: 'UPDATE_NODE', node: { ...node, ...form, ports, sfps } });
   };
 
-  const addPort  = () => setPorts(p => [...p, { id: uuid(), label: `Port${p.length + 1}` }]);
+  const addPort    = () => setPorts(p => [...p, { id: uuid(), label: `Port${p.length + 1}` }]);
   const removePort = (id: string) => setPorts(p => p.filter(x => x.id !== id));
   const renamePort = (id: string, label: string) => setPorts(p => p.map(x => x.id === id ? { ...x, label } : x));
-
-  const addSFP    = () => setSfps(s => [...s, { id: uuid(), portId: ports[0]?.id ?? '', type: '', notes: '' }]);
-  const removeSFP = (id: string) => setSfps(s => s.filter(x => x.id !== id));
-  const updateSFP = (id: string, field: keyof SFP, val: string) => setSfps(s => s.map(x => x.id === id ? { ...x, [field]: val } : x));
+  const addSFP     = () => setSfps(s => [...s, { id: uuid(), portId: ports[0]?.id ?? '', type: '', notes: '' }]);
+  const removeSFP  = (id: string) => setSfps(s => s.filter(x => x.id !== id));
+  const updateSFP  = (id: string, field: keyof SFP, val: string) => setSfps(s => s.map(x => x.id === id ? { ...x, [field]: val } : x));
 
   return (
     <>
@@ -79,32 +79,33 @@ function NodeProp({ node, dispatch }: { node: DiagramNode; dispatch: React.Dispa
         <Field label="モデル / 種別"><input className="input" value={form.model} onChange={e => setForm(f => ({ ...f, model: e.target.value }))} placeholder="例: CRS305-1G-4S+" /></Field>
         <Field label="フロア / 場所"><input className="input" value={form.floor} onChange={e => setForm(f => ({ ...f, floor: e.target.value }))} placeholder="例: 3F, B1F" /></Field>
 
-        {/* ポート方向（コンテナ以外で表示） */}
-        {!isContainer && (
-          <Field label="ポート位置">
-            <div className="flex gap-1 mt-0.5">
-              {PORT_SIDES.map(s => (
-                <button key={s.value}
-                  className={['flex-1 py-1 rounded border text-[11px] font-medium transition-colors',
-                    form.portSide === s.value ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300',
-                  ].join(' ')}
-                  onClick={() => setForm(f => ({ ...f, portSide: s.value }))}
-                >{s.label}</button>
-              ))}
-            </div>
-          </Field>
-        )}
+        {/* ポート方向（即時反映） */}
+        <Field label="ポート位置">
+          <div className="flex gap-1 mt-0.5">
+            {PORT_SIDES.map(s => (
+              <button key={s.value}
+                className={[
+                  'flex-1 py-1 rounded border text-[11px] font-medium transition-colors',
+                  node.portSide === s.value
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300',
+                ].join(' ')}
+                onClick={() => handlePortSide(s.value)}
+              >{s.label}</button>
+            ))}
+          </div>
+        </Field>
 
         <Field label="メモ"><textarea className="input resize-none" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></Field>
 
         {/* ポート一覧 */}
         <div>
           <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">ポート一覧</label>
-          <div className="space-y-1 max-h-36 overflow-y-auto" onWheel={e => e.stopPropagation()}>
+          <div className="space-y-1 max-h-40 overflow-y-auto" onWheel={e => e.stopPropagation()}>
             {ports.map(port => (
               <div key={port.id} className="flex items-center gap-1">
                 <input className="input flex-1" value={port.label} onChange={e => renamePort(port.id, e.target.value)} />
-                <button onClick={() => removePort(port.id)} className="text-red-400 hover:text-red-600 p-0.5"><Trash2 size={11} /></button>
+                <button onClick={() => removePort(port.id)} className="text-red-400 hover:text-red-600 p-0.5 flex-shrink-0"><Trash2 size={11} /></button>
               </div>
             ))}
           </div>
@@ -121,14 +122,14 @@ function NodeProp({ node, dispatch }: { node: DiagramNode; dispatch: React.Dispa
               {sfps.map(sfp => (
                 <div key={sfp.id} className="bg-gray-50 rounded p-1.5 space-y-1">
                   <div className="flex items-center gap-1">
-                    <select className="input flex-1 text-[10px]" value={sfp.portId} onChange={e => updateSFP(sfp.id, 'portId', e.target.value)}>
+                    <select className="input flex-1" value={sfp.portId} onChange={e => updateSFP(sfp.id, 'portId', e.target.value)}>
                       <option value="">ポート選択</option>
                       {ports.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </select>
                     <button onClick={() => removeSFP(sfp.id)} className="text-red-400 hover:text-red-600 p-0.5"><Trash2 size={11} /></button>
                   </div>
-                  <input className="input text-[10px]" placeholder="種別 例: 1000BASE-SX" value={sfp.type} onChange={e => updateSFP(sfp.id, 'type', e.target.value)} />
-                  <input className="input text-[10px]" placeholder="メモ" value={sfp.notes} onChange={e => updateSFP(sfp.id, 'notes', e.target.value)} />
+                  <input className="input" placeholder="種別 例: 1000BASE-SX" value={sfp.type} onChange={e => updateSFP(sfp.id, 'type', e.target.value)} />
+                  <input className="input" placeholder="メモ" value={sfp.notes} onChange={e => updateSFP(sfp.id, 'notes', e.target.value)} />
                 </div>
               ))}
             </div>
@@ -140,8 +141,10 @@ function NodeProp({ node, dispatch }: { node: DiagramNode; dispatch: React.Dispa
 
         <div className="flex gap-2 pt-1">
           <button onClick={save} className="flex-1 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium transition-colors text-xs">保存</button>
-          <button onClick={() => { if (confirm('このノードを削除しますか？')) dispatch({ type: 'DELETE_NODE', id: node.id }); }}
-            className="px-2 py-1.5 border border-red-300 text-red-500 rounded hover:bg-red-50 transition-colors"><Trash2 size={12} /></button>
+          <button
+            onClick={() => { if (confirm('このノードを削除しますか？')) dispatch({ type: 'DELETE_NODE', id: node.id }); }}
+            className="px-2 py-1.5 border border-red-300 text-red-500 rounded hover:bg-red-50 transition-colors"
+          ><Trash2 size={12} /></button>
         </div>
       </div>
     </>
@@ -165,17 +168,20 @@ function ConnProp({ conn, dispatch, nodes }: { conn: Connection; dispatch: React
           <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke={style.stroke} strokeWidth={style.width} strokeDasharray={style.dash || undefined} /></svg>
           <span className="font-medium text-gray-700">{style.label}</span>
         </div>
-        {[{ label: '接続元', n: fromNode, p: fromPort }, { label: '接続先', n: toNode, p: toPort }].map(({ label, n, p }) => (
+        {[
+          { label: '接続元', n: fromNode, p: fromPort },
+          { label: '接続先', n: toNode,   p: toPort },
+        ].map(({ label, n, p }) => (
           <div key={label} className="bg-gray-50 rounded p-2 space-y-0.5 text-[10px]">
             <div className="text-gray-400">{label}</div>
             <div className="font-medium text-gray-700">{n?.label ?? '—'}</div>
             <div className="text-gray-500">ポート: {p?.label ?? '—'}</div>
           </div>
         ))}
-        <button onClick={() => { if (confirm('この接続を削除しますか？')) dispatch({ type: 'DELETE_CONN', id: conn.id }); }}
-          className="w-full py-1.5 border border-red-300 text-red-500 rounded hover:bg-red-50 transition-colors flex items-center justify-center gap-1 text-xs">
-          <Trash2 size={12} />削除
-        </button>
+        <button
+          onClick={() => { if (confirm('この接続を削除しますか？')) dispatch({ type: 'DELETE_CONN', id: conn.id }); }}
+          className="w-full py-1.5 border border-red-300 text-red-500 rounded hover:bg-red-50 transition-colors flex items-center justify-center gap-1 text-xs"
+        ><Trash2 size={12} />削除</button>
       </div>
     </>
   );
