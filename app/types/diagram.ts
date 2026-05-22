@@ -1,19 +1,29 @@
 export type NodeType =
-  | 'rack' | 'mux' | 'patchpanel' | 'df' | 'sfp'
+  | 'rack' | '対向装置' | 'patchpanel' | 'df'
   | 'mdf' | 'eps' | 'pdboard' | 'idf'
   | 'rosette-1' | 'rosette-4'
-  | 'cpe' | 'server' | 'indoor-cable'
-  | 'building' | 'custom';
+  | 'cpe' | 'server'
+  | 'ntt-cloud' | 'building' | 'custom';
 
 export type CableType =
-  | 'sc-lc-1' | 'sc-lc-2'
+  | 'sc-lc-1'
   | 'lc-lc-1' | 'lc-lc-2'
   | 'patch-cat6' | 'patch-om3'
   | 'indoor';
 
+// コンテナ型（中に他のノードを入れる）
+export const CONTAINER_TYPES: NodeType[] = ['rack', 'mdf', 'eps', 'building', 'ntt-cloud'];
+
 export interface Port {
   id: string;
   label: string;
+}
+
+export interface SFP {
+  id: string;
+  portId: string; // どのポートに挿さっているか
+  type: string;   // 例: 1000BASE-SX, 10GBASE-LR etc.
+  notes: string;
 }
 
 export interface DiagramNode {
@@ -23,12 +33,15 @@ export interface DiagramNode {
   x: number;
   y: number;
   width: number;
+  height?: number;
   ports: Port[];
+  sfps?: SFP[];
   color: string;
   bg: string;
   model?: string;
   floor?: string;
   notes?: string;
+  parentId?: string; // コンテナに入っている場合
 }
 
 export interface Connection {
@@ -56,7 +69,6 @@ export const CABLE_STYLES: Record<CableType, {
   label: string;
 }> = {
   'sc-lc-1': { stroke: '#185FA5', dash: '', width: 2, label: 'SC-LC 1芯' },
-  'sc-lc-2': { stroke: '#185FA5', dash: '6,3', width: 2, label: 'SC-LC 2芯' },
   'lc-lc-1': { stroke: '#1D9E75', dash: '', width: 2, label: 'LC-LC 1芯' },
   'lc-lc-2': { stroke: '#1D9E75', dash: '6,3', width: 2, label: 'LC-LC 2芯' },
   'patch-cat6': { stroke: '#D85A30', dash: '', width: 2, label: 'パッチ Cat6' },
@@ -70,40 +82,38 @@ export interface NodeTemplate {
   defaultPorts: string[];
   color: string;
   bg: string;
-  darkColor: string;
-  darkBg: string;
+  isContainer?: boolean;
 }
 
 export const NODE_CATEGORIES: { label: string; items: NodeTemplate[] }[] = [
   {
     label: 'NTT局舎',
     items: [
-      { type: 'rack', label: 'ラック', defaultPorts: ['上段', '中段', '下段'], color: '#0C447C', bg: '#B5D4F4', darkColor: '#B5D4F4', darkBg: '#0C447C' },
-      { type: 'mux', label: 'Mux / 対向装置', defaultPorts: ['Port1', 'Port2', 'Port3', 'Port4'], color: '#0C447C', bg: '#B5D4F4', darkColor: '#B5D4F4', darkBg: '#0C447C' },
-      { type: 'patchpanel', label: 'パッチパネル', defaultPorts: ['1', '2', '3', '4', '5', '6', '7', '8'], color: '#0C447C', bg: '#B5D4F4', darkColor: '#B5D4F4', darkBg: '#0C447C' },
-      { type: 'df', label: 'DF（成端箱）', defaultPorts: ['A1', 'A2', 'B1', 'B2'], color: '#0C447C', bg: '#B5D4F4', darkColor: '#B5D4F4', darkBg: '#0C447C' },
-      { type: 'sfp', label: 'SFP', defaultPorts: ['TX', 'RX'], color: '#0C447C', bg: '#B5D4F4', darkColor: '#B5D4F4', darkBg: '#0C447C' },
+      { type: 'ntt-cloud', label: 'NTT区間 (雲)', defaultPorts: [], color: '#3C3489', bg: '#EEEDFE', isContainer: true },
+      { type: 'rack', label: 'ラック', defaultPorts: [], color: '#0C447C', bg: '#B5D4F4', isContainer: true },
+      { type: '対向装置', label: '対向装置', defaultPorts: ['Port1', 'Port2', 'Port3', 'Port4'], color: '#0C447C', bg: '#B5D4F4' },
+      { type: 'patchpanel', label: 'パッチパネル', defaultPorts: ['1', '2', '3', '4', '5', '6', '7', '8'], color: '#0C447C', bg: '#B5D4F4' },
+      { type: 'df', label: 'DF（成端箱）', defaultPorts: ['A1', 'A2', 'B1', 'B2'], color: '#0C447C', bg: '#B5D4F4' },
     ],
   },
   {
     label: '加入者建物',
     items: [
-      { type: 'mdf', label: 'MDF', defaultPorts: ['系統1', '系統2', '系統3'], color: '#085041', bg: '#9FE1CB', darkColor: '#9FE1CB', darkBg: '#085041' },
-      { type: 'eps', label: 'EPS', defaultPorts: ['PD板1', 'PD板2'], color: '#085041', bg: '#9FE1CB', darkColor: '#9FE1CB', darkBg: '#085041' },
-      { type: 'pdboard', label: 'NTT PD板', defaultPorts: ['出力1', '出力2', '出力3', '出力4'], color: '#085041', bg: '#9FE1CB', darkColor: '#9FE1CB', darkBg: '#085041' },
-      { type: 'idf', label: 'IDF', defaultPorts: ['UP', '系統1', '系統2'], color: '#085041', bg: '#9FE1CB', darkColor: '#9FE1CB', darkBg: '#085041' },
-      { type: 'rosette-1', label: 'ローゼット（1P）', defaultPorts: ['Port1'], color: '#085041', bg: '#9FE1CB', darkColor: '#9FE1CB', darkBg: '#085041' },
-      { type: 'rosette-4', label: 'ローゼット（4P）', defaultPorts: ['Port1', 'Port2', 'Port3', 'Port4'], color: '#085041', bg: '#9FE1CB', darkColor: '#9FE1CB', darkBg: '#085041' },
-      { type: 'cpe', label: 'CPE（CRS / CCR等）', defaultPorts: ['ether1', 'ether2', 'ether3', 'SFP1'], color: '#085041', bg: '#9FE1CB', darkColor: '#9FE1CB', darkBg: '#085041' },
-      { type: 'server', label: 'サーバ', defaultPorts: ['eth0', 'eth1', 'MGMT'], color: '#085041', bg: '#9FE1CB', darkColor: '#9FE1CB', darkBg: '#085041' },
-      { type: 'indoor-cable', label: 'インドアケーブル', defaultPorts: ['A端', 'B端'], color: '#085041', bg: '#9FE1CB', darkColor: '#9FE1CB', darkBg: '#085041' },
+      { type: 'building', label: '建物 / フロア', defaultPorts: [], color: '#085041', bg: '#9FE1CB', isContainer: true },
+      { type: 'mdf', label: 'MDF（部屋）', defaultPorts: [], color: '#085041', bg: '#9FE1CB', isContainer: true },
+      { type: 'eps', label: 'EPS（部屋）', defaultPorts: [], color: '#085041', bg: '#9FE1CB', isContainer: true },
+      { type: 'pdboard', label: 'NTT PD板', defaultPorts: ['出力1', '出力2', '出力3', '出力4'], color: '#085041', bg: '#9FE1CB' },
+      { type: 'idf', label: 'IDF', defaultPorts: ['UP', '系統1', '系統2'], color: '#085041', bg: '#9FE1CB' },
+      { type: 'rosette-1', label: 'ローゼット（1P）', defaultPorts: ['Port1'], color: '#085041', bg: '#9FE1CB' },
+      { type: 'rosette-4', label: 'ローゼット（4P）', defaultPorts: ['Port1', 'Port2', 'Port3', 'Port4'], color: '#085041', bg: '#9FE1CB' },
+      { type: 'cpe', label: 'CPE（CRS / CCR等）', defaultPorts: ['ether1', 'ether2', 'ether3', 'SFP1'], color: '#085041', bg: '#9FE1CB' },
+      { type: 'server', label: 'サーバ', defaultPorts: ['eth0', 'eth1', 'MGMT'], color: '#085041', bg: '#9FE1CB' },
     ],
   },
   {
     label: '共通',
     items: [
-      { type: 'building', label: '建物 / フロア', defaultPorts: [], color: '#3C3489', bg: '#CECBF6', darkColor: '#CECBF6', darkBg: '#3C3489' },
-      { type: 'custom', label: 'カスタム機器', defaultPorts: ['Port1', 'Port2'], color: '#5F5E5A', bg: '#D3D1C7', darkColor: '#D3D1C7', darkBg: '#444441' },
+      { type: 'custom', label: 'カスタム機器', defaultPorts: ['Port1', 'Port2'], color: '#5F5E5A', bg: '#D3D1C7' },
     ],
   },
 ];

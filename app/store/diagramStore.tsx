@@ -21,6 +21,7 @@ type Action =
   | { type: 'UPDATE_NODE'; node: DiagramNode }
   | { type: 'DELETE_NODE'; id: string }
   | { type: 'MOVE_NODE'; id: string; x: number; y: number }
+  | { type: 'RESIZE_NODE'; id: string; width: number; height: number }
   | { type: 'ADD_CONN'; conn: Connection }
   | { type: 'DELETE_CONN'; id: string }
   | { type: 'SELECT_NODE'; id: string | null }
@@ -64,6 +65,8 @@ function reducer(state: State, action: Action): State {
       };
     case 'MOVE_NODE':
       return { ...state, diagram: touch({ ...state.diagram, nodes: state.diagram.nodes.map(n => n.id === action.id ? { ...n, x: action.x, y: action.y } : n) }) };
+    case 'RESIZE_NODE':
+      return { ...state, diagram: touch({ ...state.diagram, nodes: state.diagram.nodes.map(n => n.id === action.id ? { ...n, width: action.width, height: action.height } : n) }) };
     case 'ADD_CONN':
       return { ...state, diagram: touch({ ...state.diagram, connections: [...state.diagram.connections, action.conn] }) };
     case 'DELETE_CONN':
@@ -72,7 +75,7 @@ function reducer(state: State, action: Action): State {
     case 'SELECT_CONN': return { ...state, selectedConnId: action.id, selectedNodeId: null };
     case 'SET_MODE': return { ...state, mode: action.mode, connectStep: 0, connectFrom: null };
     case 'SET_CABLE': return { ...state, connectingCable: action.cable };
-    case 'SET_CONNECT_STEP': return { ...state, connectStep: action.step, connectFrom: action.from ?? state.connectFrom };
+    case 'SET_CONNECT_STEP': return { ...state, connectStep: action.step, connectFrom: action.from !== undefined ? action.from : state.connectFrom };
     case 'SET_SCALE': return { ...state, scale: Math.max(0.3, Math.min(3, action.scale)) };
     case 'SET_PAN': return { ...state, panX: action.x, panY: action.y };
     case 'LOAD_DIAGRAM': return { ...state, diagram: action.diagram, selectedNodeId: null, selectedConnId: null };
@@ -108,15 +111,18 @@ export function useDiagram() {
   const { state, dispatch } = ctx;
 
   const addNodeFromTemplate = useCallback((tmpl: NodeTemplate, x: number, y: number) => {
+    const isContainer = tmpl.isContainer ?? false;
     const node: DiagramNode = {
       id: uuid(),
       type: tmpl.type,
       label: tmpl.label,
       x, y,
-      width: 160,
+      width: isContainer ? 240 : 160,
+      height: isContainer ? 180 : undefined,
       ports: tmpl.defaultPorts.map(p => ({ id: uuid(), label: p })),
       color: tmpl.color,
       bg: tmpl.bg,
+      sfps: [],
     };
     dispatch({ type: 'ADD_NODE', node });
     return node.id;

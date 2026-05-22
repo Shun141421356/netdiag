@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { DiagramProvider, useDiagram } from './store/diagramStore';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
@@ -19,31 +19,6 @@ function AppInner() {
     dispatch({ type: 'SET_TITLE', title: titleInput.trim() || '無題の構成図' });
     setEditingTitle(false);
   }, [titleInput, dispatch]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (state.selectedNodeId) dispatch({ type: 'DELETE_NODE', id: state.selectedNodeId });
-        if (state.selectedConnId) dispatch({ type: 'DELETE_CONN', id: state.selectedConnId });
-      }
-      if (e.key === 'Escape') {
-        dispatch({ type: 'SET_MODE', mode: 'select' });
-        dispatch({ type: 'SELECT_NODE', id: null });
-        dispatch({ type: 'SELECT_CONN', id: null });
-      }
-      if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        const blob = new Blob([JSON.stringify(state.diagram, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${state.diagram.title}.json`;
-        a.click();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [state, dispatch]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-100">
