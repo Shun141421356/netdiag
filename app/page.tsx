@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { DiagramProvider, useDiagram } from './store/diagramStore';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
@@ -9,7 +9,6 @@ function AppInner() {
   const { state, dispatch } = useDiagram();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(state.diagram.title);
-  const canvasWrapRef = useRef<HTMLDivElement>(null);
 
   const handleTitleEdit = useCallback(() => {
     setTitleInput(state.diagram.title);
@@ -40,10 +39,10 @@ function AppInner() {
           </div>
         </div>
       )}
-      <Toolbar onTitleEdit={handleTitleEdit} canvasWrapRef={canvasWrapRef} />
+      <Toolbar onTitleEdit={handleTitleEdit} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <Canvas onNodeDoubleClick={() => {}} canvasWrapRef={canvasWrapRef} />
+        <Canvas onNodeDoubleClick={() => {}} />
       </div>
     </div>
   );

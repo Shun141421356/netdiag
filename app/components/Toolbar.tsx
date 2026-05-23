@@ -1,16 +1,13 @@
 'use client';
-import { useRef, useEffect, RefObject } from 'react';
+import { useRef, useEffect } from 'react';
 import { MousePointer2, Hand, Cable, ZoomIn, ZoomOut, Maximize, Trash2, Download, Upload, FileText, Image } from 'lucide-react';
 import { useDiagram } from '../store/diagramStore';
 import { CableType, CABLE_STYLES } from '../types/diagram';
 import { exportAsPng, exportAsSvg } from '../lib/exportImage';
 
-interface Props {
-  onTitleEdit: () => void;
-  canvasWrapRef: RefObject<HTMLDivElement | null>;
-}
+interface Props { onTitleEdit: () => void; }
 
-export function Toolbar({ onTitleEdit, canvasWrapRef }: Props) {
+export function Toolbar({ onTitleEdit }: Props) {
   const { state, dispatch, exportJSON, importJSON } = useDiagram();
   const fileRef = useRef<HTMLInputElement>(null);
   const setMode = (m: typeof state.mode) => dispatch({ type: 'SET_MODE', mode: m });
@@ -42,18 +39,9 @@ export function Toolbar({ onTitleEdit, canvasWrapRef }: Props) {
   }, [state, dispatch, exportJSON]);
 
   const btnBase = 'flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded text-[10px] border transition-all duration-150 min-w-[44px]';
-  const btn  = (active: boolean) => `${btnBase} ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:border-gray-400'}`;
+  const btn = (active: boolean) => `${btnBase} ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:border-gray-400'}`;
   const iconBtn = `${btnBase} bg-white text-gray-600 border-gray-300 hover:bg-gray-50`;
   const hasSelection = !!(state.selectedNodeId || state.selectedConnId);
-
-  const handleExportPng = async () => {
-    if (!canvasWrapRef.current) return;
-    await exportAsPng(canvasWrapRef.current, state.diagram.title, state.scale, state.panX, state.panY);
-  };
-
-  const handleExportSvg = () => {
-    exportAsSvg(state.diagram, state.diagram.title);
-  };
 
   const ModeBtn = ({ mode, label, shortcut, icon }: { mode: typeof state.mode; label: string; shortcut: string; icon: React.ReactNode }) => (
     <button className={btn(state.mode === mode)} onClick={() => setMode(mode)} title={`${label} (Ctrl+${shortcut.toUpperCase()})`}>
@@ -88,15 +76,9 @@ export function Toolbar({ onTitleEdit, canvasWrapRef }: Props) {
         ))}
       </select>
       <div className="w-px h-6 bg-gray-200 mx-0.5" />
-      <button className={iconBtn} onClick={() => dispatch({ type: 'SET_SCALE', scale: state.scale * 1.2 })} title="拡大 (Ctrl+=)">
-        <ZoomIn size={13} /><span>拡大</span>
-      </button>
-      <button className={iconBtn} onClick={() => dispatch({ type: 'SET_SCALE', scale: state.scale / 1.2 })} title="縮小 (Ctrl+-)">
-        <ZoomOut size={13} /><span>縮小</span>
-      </button>
-      <button className={iconBtn} onClick={() => { dispatch({ type: 'SET_SCALE', scale: 1 }); dispatch({ type: 'SET_PAN', x: 0, y: 0 }); }}>
-        <Maximize size={13} /><span>1:1</span>
-      </button>
+      <button className={iconBtn} onClick={() => dispatch({ type: 'SET_SCALE', scale: state.scale * 1.2 })}><ZoomIn size={13} /><span>拡大</span></button>
+      <button className={iconBtn} onClick={() => dispatch({ type: 'SET_SCALE', scale: state.scale / 1.2 })}><ZoomOut size={13} /><span>縮小</span></button>
+      <button className={iconBtn} onClick={() => { dispatch({ type: 'SET_SCALE', scale: 1 }); dispatch({ type: 'SET_PAN', x: 0, y: 0 }); }}><Maximize size={13} /><span>1:1</span></button>
       <span className="text-[10px] text-gray-400 w-8 text-center">{Math.round(state.scale * 100)}%</span>
       <div className="w-px h-6 bg-gray-200 mx-0.5" />
       <button
@@ -109,18 +91,16 @@ export function Toolbar({ onTitleEdit, canvasWrapRef }: Props) {
       >
         <Trash2 size={13} /><span>削除</span><span className="text-[8px] opacity-60">Del</span>
       </button>
+
       <div className="ml-auto flex items-center gap-1.5">
-        {/* 画像書き出し */}
-        <button className={iconBtn} onClick={handleExportSvg} title="SVGで書き出し">
+        <button className={iconBtn} onClick={() => exportAsSvg(state.diagram, state.diagram.title)} title="SVGで書き出し">
           <Image size={13} /><span>SVG</span>
         </button>
-        <button className={iconBtn} onClick={handleExportPng} title="PNGで書き出し">
+        <button className={iconBtn} onClick={() => exportAsPng(state.diagram, state.diagram.title)} title="PNGで書き出し">
           <Image size={13} /><span>PNG</span>
         </button>
         <div className="w-px h-6 bg-gray-200" />
-        <button className={iconBtn} onClick={() => fileRef.current?.click()}>
-          <Upload size={13} /><span>読込</span>
-        </button>
+        <button className={iconBtn} onClick={() => fileRef.current?.click()}><Upload size={13} /><span>読込</span></button>
         <input ref={fileRef} type="file" accept=".json" className="hidden"
           onChange={e => { if (e.target.files?.[0]) importJSON(e.target.files[0]); e.target.value = ''; }} />
         <button className={`${btnBase} bg-blue-600 text-white border-blue-600 hover:bg-blue-700`} onClick={exportJSON} title="保存 (Ctrl+S)">
